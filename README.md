@@ -2,7 +2,7 @@
 
 Work with textual file paths, including relativity and resolution. Features:
 
-- _Argumented:_ functions consider absolute paths according to given _PlatformPathVariant_.
+- _Argumented:_ `Path` methods consider absolute paths according to the path's _PlatformPathVariant_.
 
 Requirements:
 

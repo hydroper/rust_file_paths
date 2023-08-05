@@ -105,27 +105,4 @@ fn resolve_one_without_starting_sep(path: &str) -> String {
         }
     }
     r.join("/")
-}#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test() {
-        assert_eq!("a", resolve_n(["a/b/.."]));
-        assert_eq!("a", resolve_n(["a", "b", ".."]));
-        assert_eq!("/a/b", resolve("/c", "/a/b"));
-        assert_eq!("a", resolve("a/b", ".."));
-        assert_eq!("a/b", resolve_one("a/b/"));
-        assert_eq!("a/b", resolve_one("a//b"));
-        assert_eq!("", relative("/a/b", "/a/b"));
-        assert_eq!("c", relative("/a/b", "/a/b/c"));
-        assert_eq!("../../c/d", relative("/a/b/c", "/a/c/d"));
-        assert_eq!("..", relative("/a/b/c", "/a/b"));
-        assert_eq!("../..", relative("/a/b/c", "/a"));
-        assert_eq!("..", relative("/a", "/"));
-        assert_eq!("a", relative("/", "/a"));
-        assert_eq!("", relative("/", "/"));
-        assert_eq!("../../c/d", relative("/a/b", "/c/d"));
-        assert_eq!("../c", relative("/a/b", "/a/c"));
-    }
 }

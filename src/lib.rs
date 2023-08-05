@@ -62,7 +62,7 @@ impl PlatformPathVariant {
     };
 }
 
-/// The `Path` structure represents a textual path based
+/// The `Path` structure represents an always-resolved textual file path based
 /// on a [_PlatformPathVariant_].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Path(String, PlatformPathVariant);
@@ -298,13 +298,51 @@ mod test {
     use super::*;
 
     #[test]
-    fn test() {
-        assert!(has_extensions("a.x", [".x", ".y"]));
-        assert_eq!("a.y", change_extension("a.x", ".y"));
-        assert_eq!("a.z", change_extension("a.x.y", ".z"));
-        assert_eq!("a.z.w", change_extension("a.x.y", ".z.w"));
+    fn extension_and_base_name() {
+        assert!(Path::new_common("a.x").has_extensions([".x", ".y"]));
+        assert_eq!("a.y", Path::new_common("a.x").change_extension(".y").to_string());
+        assert_eq!("a.0", Path::new_common("a.x.y").change_extension(".0").to_string());
+        assert_eq!("a.0.1", Path::new_common("a.x.y").change_extension(".0.1").to_string());
 
-        assert_eq!("qux.html", base_name("foo/qux.html"));
-        assert_eq!("qux", base_name_without_ext("foo/qux.html", [".html"]));
+        assert_eq!("qux.html", Path::new_common("foo/qux.html").base_name());
+        assert_eq!("qux", Path::new_common("foo/qux.html").base_name_without_ext([".html"]));
+    }
+
+    #[test]
+    fn resolution() {
+        assert_eq!("a", Path::from_n_common(["a/b/.."]).to_string());
+        assert_eq!("a", Path::from_n_common(["a", "b", ".."]).to_string());
+        assert_eq!("/a/b", Path::new_common("/c").resolve("/a/b").to_string());
+        assert_eq!("a", Path::new_common("a/b").resolve("..").to_string());
+        assert_eq!("a/b", Path::new_common("a/b/").to_string());
+        assert_eq!("a/b", Path::new_common("a//b").to_string());
+
+        let windows = PlatformPathVariant::Windows;
+        assert_eq!(r"\\Whack/a/Box", Path::from_n(["foo", r"\\Whack////a//Box", "..", "Box"], windows).to_string());
+        assert_eq!("C:/a", Path::new("C:/", windows).resolve("a").to_string());
+        assert_eq!("D:/", Path::new("C:/", windows).resolve("D:/").to_string());
+        assert_eq!("D:/a", Path::new("D:/a", windows).to_string());
+        assert_eq!("C:/a/f/b", Path::new("a", windows).resolve("C:/a///f//b").to_string());
+    }
+
+    #[test]
+    fn relativity() {
+        assert_eq!("", Path::new_common("/a/b").relative("/a/b"));
+        assert_eq!("c", Path::new_common("/a/b").relative("/a/b/c"));
+        assert_eq!("../../c/d", Path::new_common("/a/b/c").relative("/a/c/d"));
+        assert_eq!("..", Path::new_common("/a/b/c").relative("/a/b"));
+        assert_eq!("../..", Path::new_common("/a/b/c").relative("/a"));
+        assert_eq!("..", Path::new_common("/a").relative("/"));
+        assert_eq!("a", Path::new_common("/").relative("/a"));
+        assert_eq!("", Path::new_common("/").relative("/"));
+        assert_eq!("../../c/d", Path::new_common("/a/b").relative("/c/d"));
+        assert_eq!("../c", Path::new_common("/a/b").relative("/a/c"));
+
+        let windows = PlatformPathVariant::Windows;
+        assert_eq!("", Path::new("C:/", windows).relative("C:/"));
+        assert_eq!("", Path::new("C:/foo", windows).relative("C:/foo"));
+        assert_eq!(r"\\foo", Path::new("C:/", windows).relative(r"\\foo"));
+        assert_eq!("../../foo", Path::new(r"\\a/b", windows).relative(r"\\foo"));
+        assert_eq!("D:/", Path::new("C:/", windows).relative(r"D:"));
     }
 }

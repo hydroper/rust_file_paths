@@ -96,22 +96,3 @@ pub fn relative(from_path: &str, to_path: &str, manipulation: PlatformPathVarian
         },
     }
 }
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn test() {
-        assert_eq!(r"\\Whack/a/Box", resolve_n(["foo", r"\\Whack////a//Box", "..", "Box"], PlatformPathVariant::Windows));
-        assert_eq!("C:/a", resolve("C:/", "a", PlatformPathVariant::Windows));
-        assert_eq!("D:/", resolve("C:/", "D:/", PlatformPathVariant::Windows));
-        assert_eq!("D:/a", resolve_one("D:/a", PlatformPathVariant::Windows));
-        assert_eq!("C:/a/f/b", resolve("a", "C:/a///f//b", PlatformPathVariant::Windows));
-        assert_eq!("", relative("C:/", "C:/", PlatformPathVariant::Windows));
-        assert_eq!("", relative("C:/foo", "C:/foo", PlatformPathVariant::Windows));
-        assert_eq!(r"\\foo", relative("C:/", r"\\foo", PlatformPathVariant::Windows));
-        assert_eq!("../../foo", relative(r"\\a/b", r"\\foo", PlatformPathVariant::Windows));
-        assert_eq!("D:/", relative("C:/", r"D:", PlatformPathVariant::Windows));
-    }
-}
