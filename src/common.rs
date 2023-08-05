@@ -7,31 +7,6 @@ use super::{reg_exp::*, STARTS_WITH_PATH_SEPARATOR};
 
 static PATH_SEPARATOR: StaticRegExp = static_reg_exp!(r"[/\\]");
 
-/**
-Finds the relative path from `from_path` and `to_path`.
-
-# Behavior:
-
-- If the paths refer to the same path, this function returns
-  an empty string.
-- The function ensures that both paths are absolute and resolves
-  any `..` and `.` portions inside.
-
-# Exceptions
-
-Panics if given paths are not absolute, that is, if they do not start
-with a path separator.
-
-# Example
-
-```
-use file_paths::common as file_paths;
-assert_eq!("", file_paths::relative("/a/b", "/a/b"));
-assert_eq!("c", file_paths::relative("/a/b", "/a/b/c"));
-assert_eq!("../../c/d", file_paths::relative("/a/b", "/c/d"));
-assert_eq!("../c", file_paths::relative("/a/b", "/a/c"));
-```
-*/
 pub fn relative(from_path: &str, to_path: &str) -> String {
     assert!(
         [from_path.to_owned(), to_path.to_owned()].iter().all(|path| STARTS_WITH_PATH_SEPARATOR.is_match(path)),
@@ -77,25 +52,7 @@ pub fn relative(from_path: &str, to_path: &str) -> String {
     if r.ends_with('/') { r[..r.len() - 1].to_owned() } else { r }
 }
 
-/// Resolves multiple paths.
-///
-/// Behavior:
-/// - If no paths are provided, this method returns an empty string.
-/// - Eliminates the portions `..` and `.`.
-/// - If a path starts with a path separator, any subsequent paths are resolved relative to that path.
-/// - All path separators that are backslashes (`\`) are replaced by forward ones (`/`).
-/// - If any path starts with a path separator, this function returns an absolute path.
-/// - Any empty portion and trailing path separators, such as in `a/b/` and `a//b` are eliminated.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use file_paths::common as file_paths;
-/// assert_eq!("", file_paths::resolve_n([]));
-/// assert_eq!("a", file_paths::resolve_n(["a/b/.."]));
-/// assert_eq!("a", file_paths::resolve_n(["a/b", ".."]));
-/// assert_eq!("/bar", file_paths::resolve_n(["/foo", "/bar"]));
-/// ```
+#[allow(unused)]
 pub fn resolve_n<'a, T: IntoIterator<Item = &'a str>>(paths: T) -> String {
     let paths = paths.into_iter().collect::<Vec<&'a str>>();
     if paths.is_empty() {
@@ -108,23 +65,6 @@ pub fn resolve_n<'a, T: IntoIterator<Item = &'a str>>(paths: T) -> String {
     paths[2..].iter().fold(initial_path, |a, b| resolve(&a, b))
 }
 
-/// Resolves `path2` relative to `path1`.
-///
-/// Behavior:
-/// - Eliminates the portions `..` and `.`.
-/// - If `path2` starts with a path separator, this function returns a resolution of solely `path2`.
-/// - All path separators that are backslashes (`\`) are replaced by forward ones (`/`).
-/// - If any path starts with a path separator, this function returns an absolute path.
-/// - Any empty portion and trailing path separators, such as in `a/b/` and `a//b` are eliminated.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use file_paths::common as file_paths;
-/// assert_eq!("/a/b", file_paths::resolve("/c", "/a/b"));
-/// assert_eq!("a/b", file_paths::resolve_one("a/b/"));
-/// assert_eq!("a/b", file_paths::resolve_one("a//b"));
-/// ```
 pub fn resolve(path1: &str, path2: &str) -> String {
     if STARTS_WITH_PATH_SEPARATOR.is_match(path2) {
         return resolve_one(path2);
@@ -145,21 +85,6 @@ pub fn resolve(path1: &str, path2: &str) -> String {
     r
 }
 
-/// Resolves a single path.
-///
-/// Behavior:
-/// - Eliminates the portions `..` and `.`.
-/// - All path separators that are backslashes (`\`) are replaced by forward ones (`/`).
-/// - If the path starts with a path separator, an absolute path is returned.
-/// - Any empty portion and trailing path separators, such as in `a/b/` and `a//b` are eliminated.
-/// 
-/// # Examples
-/// 
-/// ```
-/// use file_paths::common as file_paths;
-/// assert_eq!("a/b", file_paths::resolve_one("a/b/"));
-/// assert_eq!("a/b", file_paths::resolve_one("a//b"));
-/// ```
 pub fn resolve_one(path: &str) -> String {
     let starts_with_slash = STARTS_WITH_PATH_SEPARATOR.is_match(path);
     let r = resolve_one_without_starting_sep(path);
