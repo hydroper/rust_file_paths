@@ -71,19 +71,19 @@ impl Path {
     /// Constructs a `Path` with a given `variant`. This method
     /// will resolve the specified path.
     pub fn new(path: &str, variant: PlatformPathVariant) -> Self {
-        Self(argumented::resolve_one(path.into(), variant), variant)
+        Self(argumented::resolve_one(path, variant), variant)
     }
 
     /// Constructs a `Path` whose variant is `Common`. This method
     /// will resolve the specified path.
     pub fn new_common(path: &str) -> Self {
-        Self(argumented::resolve_one(path.into(), PlatformPathVariant::Common), PlatformPathVariant::Common)
+        Self(argumented::resolve_one(path, PlatformPathVariant::Common), PlatformPathVariant::Common)
     }
 
     /// Constructs a `Path` whose variant is chosen according to the target platform.
     /// This method will resolve the specified path.
     pub fn new_native(path: &str) -> Self {
-        Self(argumented::resolve_one(path.into(), PlatformPathVariant::NATIVE), PlatformPathVariant::NATIVE)
+        Self(argumented::resolve_one(path, PlatformPathVariant::NATIVE), PlatformPathVariant::NATIVE)
     }
 
     /// Constructs a `Path` from multiple paths and a given `variant`.
