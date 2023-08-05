@@ -28,10 +28,10 @@ impl PlatformPathVariant {
     /// Returns the variant that represents the build's target platform.
     pub fn native() -> Self {
         #[cfg(target_os = "windows")] {
-            return Self::Windows;
+            Self::Windows
         }
         #[cfg(not(target_os = "windows"))] {
-            return Self::Default;
+            Self::Default
         }
     }
 }
@@ -62,7 +62,7 @@ static STARTS_WITH_WINDOWS_PATH_PREFIX_OR_SLASH: StaticRegExp = static_reg_exp!(
     )
 "#);
 
-static UNC_PREFIX: &'static str = r"\\";
+static UNC_PREFIX: &str = r"\\";
 
 /// Resolves `path2` relative to `path1`. This methodd
 /// has the same behavior from [`crate::common::resolve`],
@@ -75,7 +75,7 @@ pub fn resolve(path1: &str, path2: &str, manipulation: PlatformPathVariant) -> S
         },
         PlatformPathVariant::Windows => {
             let paths = [path1, path2].map(|p| p.to_owned());
-            let prefixed: Vec<String> = paths.iter().filter(|path| STARTS_WITH_WINDOWS_PATH_PREFIX.is_match(path)).map(|s| s.clone()).collect();
+            let prefixed: Vec<String> = paths.iter().filter(|path| STARTS_WITH_WINDOWS_PATH_PREFIX.is_match(path)).cloned().collect();
             if prefixed.is_empty() {
                 return crate::common::resolve(path1, path2);
             }
@@ -94,14 +94,14 @@ pub fn resolve(path1: &str, path2: &str, manipulation: PlatformPathVariant) -> S
 /// [`resolve`].
 pub fn resolve_n<'a, T: IntoIterator<Item = &'a str>>(paths: T, manipulation: PlatformPathVariant) -> String {
     let paths = paths.into_iter().collect::<Vec<&'a str>>();
-    if paths.len() == 0 {
+    if paths.is_empty() {
         return "".to_owned();
     }
     if paths.len() == 1 {
-        return resolve(paths[0].as_ref(), "", manipulation);
+        return resolve(paths[0], "", manipulation);
     }
-    let initial_path = resolve(paths[0].as_ref(), paths[1].as_ref(), manipulation);
-    paths[2..].iter().fold(initial_path, |a, b| resolve(a.as_ref(), b.as_ref(), manipulation))
+    let initial_path = resolve(paths[0], paths[1], manipulation);
+    paths[2..].iter().fold(initial_path, |a, b| resolve(&a, b, manipulation))
 }
 
 /// Resolves a single path with the same behavior from
@@ -145,10 +145,18 @@ pub fn relative(from_path: &str, to_path: &str, manipulation: PlatformPathVarian
             if prefix != prefixes[1] {
                 return resolve_one(to_path, manipulation);
             }
+            /*
             for i in 0..2 {
                 paths[i] = paths[i][prefix.len()..].to_owned();
                 if !STARTS_WITH_PATH_SEPARATOR.is_match(paths[i].as_ref()) {
                     paths[i] = "/".to_owned() + paths[i].as_ref();
+                }
+            }
+            */
+            for path in &mut paths {
+                *path = path[prefix.len()..].to_owned();
+                if !STARTS_WITH_PATH_SEPARATOR.is_match(path.as_ref()) {
+                    *path = "/".to_owned() + path.as_ref();
                 }
             }
             crate::common::relative(paths[0].as_ref(), paths[1].as_ref())

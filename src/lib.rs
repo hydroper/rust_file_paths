@@ -58,7 +58,7 @@ static STARTS_WITH_PATH_SEPARATOR: StaticRegExp = static_reg_exp!(r"^[/\\]");
 /// ```
 ///
 pub fn change_extension(path: &str, extension: &str) -> String {
-    let extension = (if extension.starts_with(".") { "" } else { "." }).to_owned() + extension;
+    let extension = (if extension.starts_with('.') { "" } else { "." }).to_owned() + extension;
     if reg_exp_find!(r"(\.[^\.]+)+$", path).is_none() {
         return path.to_owned() + &extension;
     }
@@ -74,7 +74,7 @@ pub fn change_extension(path: &str, extension: &str) -> String {
 /// Panics if the extension contains more than one dot.
 ///
 pub fn change_last_extension(path: &str, extension: &str) -> String {
-    let extension = (if extension.starts_with(".") { "" } else { "." }).to_owned() + extension;
+    let extension = (if extension.starts_with('.') { "" } else { "." }).to_owned() + extension;
     assert!(
         extension[1..].find('.').is_none(),
         "The argument to file_paths::change_last_extension() must only contain one extension; got {}",
@@ -88,14 +88,14 @@ pub fn change_last_extension(path: &str, extension: &str) -> String {
 
 /// Adds prefix dot to extension if missing.
 fn extension_arg(extension: &str) -> String {
-    (if extension.starts_with(".") { "" } else { "." }).to_owned() + extension
+    (if extension.starts_with('.') { "" } else { "." }).to_owned() + extension
 }
 
 /// Checks if a file path has a specific extension.
 /// This method adds any lacking dot (`.`) prefix automatically to the
 /// `extension` argument.
 pub fn has_extension(path: &str, extension: &str) -> bool {
-    let extension = (if extension.starts_with(".") { "" } else { "." }).to_owned() + extension;
+    let extension = (if extension.starts_with('.') { "" } else { "." }).to_owned() + extension;
     path.ends_with(&extension_arg(&extension))
 }
 
@@ -129,10 +129,10 @@ pub fn base_name(path: &str) -> String {
 pub fn base_name_without_ext<'a, T>(path: &str, extensions: T) -> String
     where T: IntoIterator<Item = &'a str>
 {
-    let extensions = extensions.into_iter().map(|s| extension_arg(s)).collect::<Vec<String>>();
+    let extensions = extensions.into_iter().map(extension_arg).collect::<Vec<String>>();
     path.split('/').last().map_or("".to_owned(), |base| {
         reg_exp_replace!(r"(\.[^\.]+)+$", base, |_, prev_ext: &str| {
-            (if extensions.iter().any(|ext| ext == &prev_ext) { "" } else { prev_ext }).to_owned()
+            (if extensions.iter().any(|ext| ext == prev_ext) { "" } else { prev_ext }).to_owned()
         }).into_owned()
     })
 }

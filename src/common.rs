@@ -98,14 +98,14 @@ pub fn relative(from_path: &str, to_path: &str) -> String {
 /// ```
 pub fn resolve_n<'a, T: IntoIterator<Item = &'a str>>(paths: T) -> String {
     let paths = paths.into_iter().collect::<Vec<&'a str>>();
-    if paths.len() == 0 {
+    if paths.is_empty() {
         return "".to_owned();
     }
     if paths.len() == 1 {
-        return resolve_one(paths[0].as_ref());
+        return resolve_one(paths[0]);
     }
-    let initial_path = resolve(paths[0].as_ref(), paths[1].as_ref());
-    paths[2..].iter().fold(initial_path, |a, b| resolve(a.as_ref(), b.as_ref()))
+    let initial_path = resolve(paths[0], paths[1]);
+    paths[2..].iter().fold(initial_path, |a, b| resolve(&a, b))
 }
 
 /// Resolves `path2` relative to `path1`.
