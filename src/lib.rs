@@ -19,7 +19,7 @@ is always _Windows_. For other platforms, it's always _Common_.
 # Example
 
 ```
-use file_paths::Path;
+use file_paths::FlexPath;
 
 assert_eq!("a", FlexPath::new_common("a/b").resolve("..").to_string());
 assert_eq!("a", FlexPath::new_common("a/b/..").to_string());
@@ -49,8 +49,7 @@ pub enum FlexPathVariant {
 }
 
 impl FlexPathVariant {
-    /// The variant that represents the build's target platform.
-    pub const NATIVE: Self = {
+    pub(crate) const NATIVE: Self = {
         #[cfg(target_os = "windows")] {
             Self::Windows
         }
@@ -58,6 +57,11 @@ impl FlexPathVariant {
             Self::Common
         }
     };
+
+    /// The variant that represents the build's target platform.
+    pub const fn native() -> Self {
+        Self::NATIVE
+    }
 }
 
 /// The `FlexPath` structure represents an always-resolved textual file path based
@@ -147,7 +151,7 @@ impl FlexPath {
     # Example
 
     ```
-    use file_paths::Path;
+    use file_paths::FlexPath;
     assert_eq!("", FlexPath::new_common("/a/b").relative("/a/b"));
     assert_eq!("c", FlexPath::new_common("/a/b").relative("/a/b/c"));
     assert_eq!("../../c/d", FlexPath::new_common("/a/b").relative("/c/d"));
@@ -168,7 +172,7 @@ impl FlexPath {
     /// # Example
     /// 
     /// ```
-    /// use file_paths::Path;
+    /// use file_paths::FlexPath;
     /// assert_eq!("a.y", FlexPath::new_common("a.x").change_extension(".y").to_string());
     /// assert_eq!("a.z", FlexPath::new_common("a.x.y").change_extension(".z").to_string());
     /// assert_eq!("a.z.w", FlexPath::new_common("a.x.y").change_extension(".z.w").to_string());
