@@ -3,9 +3,10 @@ Work with generic file paths. This module only considers an _absolute path_ to b
 that starts with a path separator.
 */
 
-use super::{reg_exp::*, STARTS_WITH_PATH_SEPARATOR};
+use super::{STARTS_WITH_PATH_SEPARATOR};
+use lazy_regex::*;
 
-static PATH_SEPARATOR: StaticRegExp = static_reg_exp!(r"[/\\]");
+static PATH_SEPARATOR: Lazy<Regex> = lazy_regex!(r"[/\\]");
 
 pub fn relative(from_path: &str, to_path: &str) -> String {
     assert!(

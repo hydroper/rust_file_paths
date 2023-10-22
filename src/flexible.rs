@@ -1,22 +1,22 @@
 /*!
 This module contains a layer over the common submodule for
-handling paths with a _PlatformPathVariant_ variant.
+handling paths with a `FlexPathVariant` variant.
 */
 
 use super::{
     STARTS_WITH_PATH_SEPARATOR,
-    reg_exp::*,
-    PlatformPathVariant
+    FlexPathVariant
 };
+use lazy_regex::*;
 
-static STARTS_WITH_WINDOWS_PATH_PREFIX: StaticRegExp = static_reg_exp!(r#"(?x)
+static STARTS_WITH_WINDOWS_PATH_PREFIX: Lazy<Regex> = lazy_regex!(r#"(?x)
     ^ (
         (\\\\)       | # UNC prefix
         ([A-Za-z]\:)   # drive prefix
     )
 "#);
 
-static STARTS_WITH_WINDOWS_PATH_PREFIX_OR_SLASH: StaticRegExp = static_reg_exp!(r#"(?x)
+static STARTS_WITH_WINDOWS_PATH_PREFIX_OR_SLASH: Lazy<Regex> = lazy_regex!(r#"(?x)
     ^ (
         (\\\\)             | # UNC prefix
         ([A-Za-z]\:)       | # drive prefix
@@ -26,19 +26,19 @@ static STARTS_WITH_WINDOWS_PATH_PREFIX_OR_SLASH: StaticRegExp = static_reg_exp!(
 
 static UNC_PREFIX: &str = r"\\";
 
-pub fn resolve(path1: &str, path2: &str, manipulation: PlatformPathVariant) -> String {
+pub fn resolve(path1: &str, path2: &str, manipulation: FlexPathVariant) -> String {
     match manipulation {
-        PlatformPathVariant::Common => {
+        FlexPathVariant::Common => {
             crate::common::resolve(path1, path2)
         },
-        PlatformPathVariant::Windows => {
+        FlexPathVariant::Windows => {
             let paths = [path1, path2].map(|p| p.to_owned());
             let prefixed: Vec<String> = paths.iter().filter(|path| STARTS_WITH_WINDOWS_PATH_PREFIX.is_match(path)).cloned().collect();
             if prefixed.is_empty() {
                 return crate::common::resolve(path1, path2);
             }
             let prefix = STARTS_WITH_WINDOWS_PATH_PREFIX.find(prefixed.last().unwrap().as_ref()).map(|m| m.as_str().to_owned()).unwrap();
-            let paths: Vec<String> = paths.iter().map(|path| STARTS_WITH_WINDOWS_PATH_PREFIX.replace(path.as_ref(), |_: &RegExpCaptures| "/").into_owned()).collect();
+            let paths: Vec<String> = paths.iter().map(|path| STARTS_WITH_WINDOWS_PATH_PREFIX.replace(path.as_ref(), |_: &Captures| "/").into_owned()).collect();
             let r = crate::common::resolve(&paths[0], &paths[1]);
             if prefix == UNC_PREFIX {
                 return UNC_PREFIX.to_owned() + &r[1..];
@@ -48,7 +48,7 @@ pub fn resolve(path1: &str, path2: &str, manipulation: PlatformPathVariant) -> S
     }
 }
 
-pub fn resolve_n<'a, T: IntoIterator<Item = &'a str>>(paths: T, manipulation: PlatformPathVariant) -> String {
+pub fn resolve_n<'a, T: IntoIterator<Item = &'a str>>(paths: T, manipulation: FlexPathVariant) -> String {
     let paths = paths.into_iter().collect::<Vec<&'a str>>();
     if paths.is_empty() {
         return "".to_owned();
@@ -60,22 +60,22 @@ pub fn resolve_n<'a, T: IntoIterator<Item = &'a str>>(paths: T, manipulation: Pl
     paths[2..].iter().fold(initial_path, |a, b| resolve(&a, b, manipulation))
 }
 
-pub fn resolve_one(path: &str, manipulation: PlatformPathVariant) -> String {
+pub fn resolve_one(path: &str, manipulation: FlexPathVariant) -> String {
     resolve_n([path], manipulation)
 }
 
-pub fn is_absolute(path: &str, manipulation: PlatformPathVariant) -> bool {
+pub fn is_absolute(path: &str, manipulation: FlexPathVariant) -> bool {
     match manipulation {
-        PlatformPathVariant::Common => STARTS_WITH_PATH_SEPARATOR.is_match(path),
-        PlatformPathVariant::Windows => STARTS_WITH_WINDOWS_PATH_PREFIX_OR_SLASH.is_match(path),
+        FlexPathVariant::Common => STARTS_WITH_PATH_SEPARATOR.is_match(path),
+        FlexPathVariant::Windows => STARTS_WITH_WINDOWS_PATH_PREFIX_OR_SLASH.is_match(path),
     }
 }
 
-pub fn relative(from_path: &str, to_path: &str, manipulation: PlatformPathVariant) -> String {
+pub fn relative(from_path: &str, to_path: &str, manipulation: FlexPathVariant) -> String {
     match manipulation {
-        PlatformPathVariant::Common =>
+        FlexPathVariant::Common =>
             crate::common::relative(from_path, to_path),
-        PlatformPathVariant::Windows => {
+        FlexPathVariant::Windows => {
             assert!(
                 [from_path.to_owned(), to_path.to_owned()].iter().all(|path| is_absolute(path, manipulation)),
                 "file_paths::argumented::relative() requires absolute paths as arguments"

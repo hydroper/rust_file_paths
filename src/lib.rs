@@ -3,16 +3,16 @@ Work with file paths by text only.
 
 In the Windows operating system, absolute paths may either start with a drive letter followed by
 a colon or an UNC path prefix (`\\`). Therefore, this crate provides
-a `Path` that is based on a variant ([_PlatformPathVariant_]), which you don't need to always
+a `FlexPath` that is based on a variant ([_FlexPathVariant_]), which you don't need to always
 specify. This variant indicates whether to interpret Windows absolute paths
 or not.
 
-There are two _PlatformPathVariant_ variants currently:
+There are two _FlexPathVariant_ variants currently:
 
 - _Common_
 - _Windows_
 
-The constant `PlatformPathVariant::NATIVE` is one of these variants
+The constant `FlexPathVariant::NATIVE` is one of these variants
 based on the target platform. For the Windows operating system, it
 is always _Windows_. For other platforms, it's always _Common_.
 
@@ -21,36 +21,34 @@ is always _Windows_. For other platforms, it's always _Common_.
 ```
 use file_paths::Path;
 
-assert_eq!("a", Path::new_common("a/b").resolve("..").to_string());
-assert_eq!("a", Path::new_common("a/b/..").to_string());
-assert_eq!("a/b/c/d/e", Path::from_n_common(["a/b", "c/d", "e/f", ".."]).to_string());
-assert_eq!("../../c/d", Path::new_common("/a/b").relative("/c/d"));
+assert_eq!("a", FlexPath::new_common("a/b").resolve("..").to_string());
+assert_eq!("a", FlexPath::new_common("a/b/..").to_string());
+assert_eq!("a/b/c/d/e", FlexPath::from_n_common(["a/b", "c/d", "e/f", ".."]).to_string());
+assert_eq!("../../c/d", FlexPath::new_common("/a/b").relative("/c/d"));
 ```
 */
 
-mod reg_exp;
-use reg_exp::*;
+use lazy_regex::*;
 
 pub(crate) mod common;
-pub(crate) mod argumented;
+pub(crate) mod flexible;
 
 /// Indicates if special absolute paths are considered.
 ///
 /// Currently, only two variants are defined, considering that there is
 /// no known operating system with different path support other than Windows:
 /// 
-/// - `Common`
-/// - `Windows`
+/// * `Common`
+/// * `Windows`
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub enum PlatformPathVariant {
-    /// Indicates that the path is manipulated in a generic way,
-    /// that is, the same behavior from the [`file_paths`] module.
+pub enum FlexPathVariant {
+    /// Indicates that the path is manipulated in a common way.
     Common,
     /// Indicates that the path is manipulated compatibly with the Windows operating system.
     Windows,
 }
 
-impl PlatformPathVariant {
+impl FlexPathVariant {
     /// The variant that represents the build's target platform.
     pub const NATIVE: Self = {
         #[cfg(target_os = "windows")] {
@@ -62,73 +60,73 @@ impl PlatformPathVariant {
     };
 }
 
-/// The `Path` structure represents an always-resolved textual file path based
-/// on a [_PlatformPathVariant_].
+/// The `FlexPath` structure represents an always-resolved textual file path based
+/// on a [_FlexPathVariant_].
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Path(String, PlatformPathVariant);
+pub struct FlexPath(String, FlexPathVariant);
 
-impl Path {
-    /// Constructs a `Path` with a given `variant`. This method
+impl FlexPath {
+    /// Constructs a `FlexPath` with a given `variant`. This method
     /// will resolve the specified path.
-    pub fn new(path: &str, variant: PlatformPathVariant) -> Self {
-        Self(argumented::resolve_one(path, variant), variant)
+    pub fn new(path: &str, variant: FlexPathVariant) -> Self {
+        Self(flexible::resolve_one(path, variant), variant)
     }
 
-    /// Constructs a `Path` whose variant is `Common`. This method
+    /// Constructs a `FlexPath` whose variant is `Common`. This method
     /// will resolve the specified path.
     pub fn new_common(path: &str) -> Self {
-        Self(argumented::resolve_one(path, PlatformPathVariant::Common), PlatformPathVariant::Common)
+        Self(flexible::resolve_one(path, FlexPathVariant::Common), FlexPathVariant::Common)
     }
 
-    /// Constructs a `Path` whose variant is chosen according to the target platform.
+    /// Constructs a `FlexPath` whose variant is chosen according to the target platform.
     /// This method will resolve the specified path.
     pub fn new_native(path: &str) -> Self {
-        Self(argumented::resolve_one(path, PlatformPathVariant::NATIVE), PlatformPathVariant::NATIVE)
+        Self(flexible::resolve_one(path, FlexPathVariant::NATIVE), FlexPathVariant::NATIVE)
     }
 
-    /// Constructs a `Path` from multiple paths and a given `variant`.
-    pub fn from_n<'a, T: IntoIterator<Item = &'a str>>(paths: T, variant: PlatformPathVariant) -> Self {
-        Self(argumented::resolve_n(paths, variant), variant)
+    /// Constructs a `FlexPath` from multiple paths and a given `variant`.
+    pub fn from_n<'a, T: IntoIterator<Item = &'a str>>(paths: T, variant: FlexPathVariant) -> Self {
+        Self(flexible::resolve_n(paths, variant), variant)
     }
 
-    /// Constructs a `Path` from multiple paths and a `Common` variant.
+    /// Constructs a `FlexPath` from multiple paths and a `Common` variant.
     pub fn from_n_common<'a, T: IntoIterator<Item = &'a str>>(paths: T) -> Self {
-        Self::from_n(paths, PlatformPathVariant::Common)
+        Self::from_n(paths, FlexPathVariant::Common)
     }
 
-    /// Constructs a `Path` from multiple paths and a variant based on
+    /// Constructs a `FlexPath` from multiple paths and a variant based on
     /// the target platform.
     pub fn from_n_native<'a, T: IntoIterator<Item = &'a str>>(paths: T) -> Self {
-        Self::from_n(paths, PlatformPathVariant::NATIVE)
+        Self::from_n(paths, FlexPathVariant::NATIVE)
     }
 
-    /// Returns the variant this `Path` object is based on.
-    pub fn variant(&self) -> PlatformPathVariant {
+    /// Returns the variant this `FlexPath` object is based on.
+    pub fn variant(&self) -> FlexPathVariant {
         self.1
     }
 
-    /// Indicates whether the `Path` is absolute or not.
+    /// Indicates whether the `FlexPath` is absolute or not.
     pub fn is_absolute(&self) -> bool {
-        argumented::is_absolute(&self.0, self.1)
+        flexible::is_absolute(&self.0, self.1)
     }
 
     /// Resolves `path2` relative to `path1`.
     ///
     /// Behavior:
-    /// - Eliminates the portions `..` and `.`.
+    /// - Eliminates the segments `..` and `.`.
     /// - If `path2` is absolute, this function returns a resolution of solely `path2`.
     /// - All path separators that are backslashes (`\`) are replaced by forward ones (`/`).
     /// - If any path is absolute, this function returns an absolute path.
-    /// - Any empty portion and trailing path separators, such as in `a/b/` and `a//b` are eliminated.
-    pub fn resolve(&self, path2: &str) -> Path {
-        Path(argumented::resolve(&self.0, path2, self.1), self.1)
+    /// - Any empty segment and trailing path separators, such as in `a/b/` and `a//b` are eliminated.
+    pub fn resolve(&self, path2: &str) -> FlexPath {
+        FlexPath(flexible::resolve(&self.0, path2, self.1), self.1)
     }
 
     /// Resolves multiple paths relative to this path. The
     /// behavior is similiar to [`.resolve`]. If the given
     /// set has no items, an empty string is returned.
-    pub fn resolve_n<'a, T: IntoIterator<Item = &'a str>>(&self, paths: T) -> Path {
-        Path(argumented::resolve(&self.0, &argumented::resolve_n(paths, self.1), self.1), self.1)
+    pub fn resolve_n<'a, T: IntoIterator<Item = &'a str>>(&self, paths: T) -> FlexPath {
+        FlexPath(flexible::resolve(&self.0, &flexible::resolve_n(paths, self.1), self.1), self.1)
     }
 
     /**
@@ -139,7 +137,7 @@ impl Path {
     - If the paths refer to the same path, this function returns
     an empty string.
     - The function ensures that both paths are absolute and resolves
-    any `..` and `.` portions inside.
+    any `..` and `.` segments inside.
     - If both paths have different prefix, `to_path` is returned.
 
     # Panics
@@ -150,14 +148,14 @@ impl Path {
 
     ```
     use file_paths::Path;
-    assert_eq!("", Path::new_common("/a/b").relative("/a/b"));
-    assert_eq!("c", Path::new_common("/a/b").relative("/a/b/c"));
-    assert_eq!("../../c/d", Path::new_common("/a/b").relative("/c/d"));
-    assert_eq!("../c", Path::new_common("/a/b").relative("/a/c"));
+    assert_eq!("", FlexPath::new_common("/a/b").relative("/a/b"));
+    assert_eq!("c", FlexPath::new_common("/a/b").relative("/a/b/c"));
+    assert_eq!("../../c/d", FlexPath::new_common("/a/b").relative("/c/d"));
+    assert_eq!("../c", FlexPath::new_common("/a/b").relative("/a/c"));
     ```
     */
     pub fn relative(&self, to_path: &str) -> String {
-        argumented::relative(&self.0, to_path, self.1)
+        flexible::relative(&self.0, to_path, self.1)
     }
 
     /// Changes the extension of a path and returns a new string.
@@ -171,12 +169,12 @@ impl Path {
     /// 
     /// ```
     /// use file_paths::Path;
-    /// assert_eq!("a.y", Path::new_common("a.x").change_extension(".y").to_string());
-    /// assert_eq!("a.z", Path::new_common("a.x.y").change_extension(".z").to_string());
-    /// assert_eq!("a.z.w", Path::new_common("a.x.y").change_extension(".z.w").to_string());
+    /// assert_eq!("a.y", FlexPath::new_common("a.x").change_extension(".y").to_string());
+    /// assert_eq!("a.z", FlexPath::new_common("a.x.y").change_extension(".z").to_string());
+    /// assert_eq!("a.z.w", FlexPath::new_common("a.x.y").change_extension(".z.w").to_string());
     /// ```
     ///
-    pub fn change_extension(&self, extension: &str) -> Path {
+    pub fn change_extension(&self, extension: &str) -> FlexPath {
         Self(change_extension(&self.0, extension), self.1)
     }
 
@@ -188,7 +186,7 @@ impl Path {
     ///
     /// Panics if the extension contains more than one dot.
     ///
-    pub fn change_last_extension(&self, extension: &str) -> Path {
+    pub fn change_last_extension(&self, extension: &str) -> FlexPath {
         Self(change_last_extension(&self.0, extension), self.1)
     }
 
@@ -211,8 +209,8 @@ impl Path {
     /// # Example
     /// 
     /// ```
-    /// use file_paths::Path;
-    /// assert_eq!("qux.html", Path::new_common("foo/qux.html").base_name());
+    /// use file_paths::FlexPath;
+    /// assert_eq!("qux.html", FlexPath::new_common("foo/qux.html").base_name());
     /// ```
     pub fn base_name(&self) -> String {
         base_name(&self.0)
@@ -225,30 +223,43 @@ impl Path {
     /// # Example
     /// 
     /// ```
-    /// use file_paths::Path;
-    /// assert_eq!("qux", Path::new_common("foo/qux.html").base_name_without_ext([".html"]));
+    /// use file_paths::FlexPath;
+    /// assert_eq!("qux", FlexPath::new_common("foo/qux.html").base_name_without_ext([".html"]));
     /// ```
     pub fn base_name_without_ext<'a, T>(&self, extensions: T) -> String
         where T: IntoIterator<Item = &'a str>
     {
         base_name_without_ext(&self.0, extensions)
     }
+
+    /// Returns a string representation of the path,
+    /// delimiting segments with either a forward slash (`/`) or backward slash (`\`)
+    /// depending on the path's `FlexPathVariant`.
+    pub fn to_string_with_flex_separator(&self) -> String {
+        if self.variant() == FlexPathVariant::Windows {
+            self.0.replace('/', "\\")
+        } else {
+            self.0.clone()
+        }
+    }
 }
 
-impl ToString for Path {
+impl ToString for FlexPath {
+    /// Returns a string representation of the path,
+    /// always delimiting segments with a forward slash (`/`).
     fn to_string(&self) -> String {
         self.0.clone()
     }
 }
 
-static STARTS_WITH_PATH_SEPARATOR: StaticRegExp = static_reg_exp!(r"^[/\\]");
+static STARTS_WITH_PATH_SEPARATOR: Lazy<Regex> = lazy_regex!(r"^[/\\]");
 
 fn change_extension(path: &str, extension: &str) -> String {
     let extension = (if extension.starts_with('.') { "" } else { "." }).to_owned() + extension;
-    if reg_exp_find!(r"(\.[^\.]+)+$", path).is_none() {
+    if regex_find!(r"(\.[^\.]+)+$", path).is_none() {
         return path.to_owned() + &extension;
     }
-    reg_exp_replace!(r"(\.[^\.]+)+$", path, |_, _| &extension).into_owned()
+    regex_replace!(r"(\.[^\.]+)+$", path, |_, _| &extension).into_owned()
 }
 
 fn change_last_extension(path: &str, extension: &str) -> String {
@@ -258,10 +269,10 @@ fn change_last_extension(path: &str, extension: &str) -> String {
         "The argument to file_paths::change_last_extension() must only contain one extension; got {}",
         extension
     );
-    if reg_exp_find!(r"(\..+)$", path).is_none() {
+    if regex_find!(r"(\..+)$", path).is_none() {
         return path.to_owned() + &extension;
     }
-    reg_exp_replace!(r"(\..+)$", path, |_, _| &extension).into_owned()
+    regex_replace!(r"(\..+)$", path, |_, _| &extension).into_owned()
 }
 
 /// Adds prefix dot to extension if missing.
@@ -287,7 +298,7 @@ fn base_name_without_ext<'a, T>(path: &str, extensions: T) -> String
 {
     let extensions = extensions.into_iter().map(extension_arg).collect::<Vec<String>>();
     path.split('/').last().map_or("".to_owned(), |base| {
-        reg_exp_replace!(r"(\.[^\.]+)+$", base, |_, prev_ext: &str| {
+        regex_replace!(r"(\.[^\.]+)+$", base, |_, prev_ext: &str| {
             (if extensions.iter().any(|ext| ext == prev_ext) { "" } else { prev_ext }).to_owned()
         }).into_owned()
     })
@@ -299,50 +310,50 @@ mod test {
 
     #[test]
     fn extension_and_base_name() {
-        assert!(Path::new_common("a.x").has_extensions([".x", ".y"]));
-        assert_eq!("a.y", Path::new_common("a.x").change_extension(".y").to_string());
-        assert_eq!("a.0", Path::new_common("a.x.y").change_extension(".0").to_string());
-        assert_eq!("a.0.1", Path::new_common("a.x.y").change_extension(".0.1").to_string());
+        assert!(FlexPath::new_common("a.x").has_extensions([".x", ".y"]));
+        assert_eq!("a.y", FlexPath::new_common("a.x").change_extension(".y").to_string());
+        assert_eq!("a.0", FlexPath::new_common("a.x.y").change_extension(".0").to_string());
+        assert_eq!("a.0.1", FlexPath::new_common("a.x.y").change_extension(".0.1").to_string());
 
-        assert_eq!("qux.html", Path::new_common("foo/qux.html").base_name());
-        assert_eq!("qux", Path::new_common("foo/qux.html").base_name_without_ext([".html"]));
+        assert_eq!("qux.html", FlexPath::new_common("foo/qux.html").base_name());
+        assert_eq!("qux", FlexPath::new_common("foo/qux.html").base_name_without_ext([".html"]));
     }
 
     #[test]
     fn resolution() {
-        assert_eq!("a", Path::from_n_common(["a/b/.."]).to_string());
-        assert_eq!("a", Path::from_n_common(["a", "b", ".."]).to_string());
-        assert_eq!("/a/b", Path::new_common("/c").resolve("/a/b").to_string());
-        assert_eq!("a", Path::new_common("a/b").resolve("..").to_string());
-        assert_eq!("a/b", Path::new_common("a/b/").to_string());
-        assert_eq!("a/b", Path::new_common("a//b").to_string());
+        assert_eq!("a", FlexPath::from_n_common(["a/b/.."]).to_string());
+        assert_eq!("a", FlexPath::from_n_common(["a", "b", ".."]).to_string());
+        assert_eq!("/a/b", FlexPath::new_common("/c").resolve("/a/b").to_string());
+        assert_eq!("a", FlexPath::new_common("a/b").resolve("..").to_string());
+        assert_eq!("a/b", FlexPath::new_common("a/b/").to_string());
+        assert_eq!("a/b", FlexPath::new_common("a//b").to_string());
 
-        let windows = PlatformPathVariant::Windows;
-        assert_eq!(r"\\Whack/a/Box", Path::from_n(["foo", r"\\Whack////a//Box", "..", "Box"], windows).to_string());
-        assert_eq!("C:/a", Path::new("C:/", windows).resolve("a").to_string());
-        assert_eq!("D:/", Path::new("C:/", windows).resolve("D:/").to_string());
-        assert_eq!("D:/a", Path::new("D:/a", windows).to_string());
-        assert_eq!("C:/a/f/b", Path::new("a", windows).resolve("C:/a///f//b").to_string());
+        let windows = FlexPathVariant::Windows;
+        assert_eq!(r"\\Whack/a/Box", FlexPath::from_n(["foo", r"\\Whack////a//Box", "..", "Box"], windows).to_string());
+        assert_eq!("C:/a", FlexPath::new("C:/", windows).resolve("a").to_string());
+        assert_eq!("D:/", FlexPath::new("C:/", windows).resolve("D:/").to_string());
+        assert_eq!("D:/a", FlexPath::new("D:/a", windows).to_string());
+        assert_eq!("C:/a/f/b", FlexPath::new("a", windows).resolve("C:/a///f//b").to_string());
     }
 
     #[test]
     fn relativity() {
-        assert_eq!("", Path::new_common("/a/b").relative("/a/b"));
-        assert_eq!("c", Path::new_common("/a/b").relative("/a/b/c"));
-        assert_eq!("../../c/d", Path::new_common("/a/b/c").relative("/a/c/d"));
-        assert_eq!("..", Path::new_common("/a/b/c").relative("/a/b"));
-        assert_eq!("../..", Path::new_common("/a/b/c").relative("/a"));
-        assert_eq!("..", Path::new_common("/a").relative("/"));
-        assert_eq!("a", Path::new_common("/").relative("/a"));
-        assert_eq!("", Path::new_common("/").relative("/"));
-        assert_eq!("../../c/d", Path::new_common("/a/b").relative("/c/d"));
-        assert_eq!("../c", Path::new_common("/a/b").relative("/a/c"));
+        assert_eq!("", FlexPath::new_common("/a/b").relative("/a/b"));
+        assert_eq!("c", FlexPath::new_common("/a/b").relative("/a/b/c"));
+        assert_eq!("../../c/d", FlexPath::new_common("/a/b/c").relative("/a/c/d"));
+        assert_eq!("..", FlexPath::new_common("/a/b/c").relative("/a/b"));
+        assert_eq!("../..", FlexPath::new_common("/a/b/c").relative("/a"));
+        assert_eq!("..", FlexPath::new_common("/a").relative("/"));
+        assert_eq!("a", FlexPath::new_common("/").relative("/a"));
+        assert_eq!("", FlexPath::new_common("/").relative("/"));
+        assert_eq!("../../c/d", FlexPath::new_common("/a/b").relative("/c/d"));
+        assert_eq!("../c", FlexPath::new_common("/a/b").relative("/a/c"));
 
-        let windows = PlatformPathVariant::Windows;
-        assert_eq!("", Path::new("C:/", windows).relative("C:/"));
-        assert_eq!("", Path::new("C:/foo", windows).relative("C:/foo"));
-        assert_eq!(r"\\foo", Path::new("C:/", windows).relative(r"\\foo"));
-        assert_eq!("../../foo", Path::new(r"\\a/b", windows).relative(r"\\foo"));
-        assert_eq!("D:/", Path::new("C:/", windows).relative(r"D:"));
+        let windows = FlexPathVariant::Windows;
+        assert_eq!("", FlexPath::new("C:/", windows).relative("C:/"));
+        assert_eq!("", FlexPath::new("C:/foo", windows).relative("C:/foo"));
+        assert_eq!(r"\\foo", FlexPath::new("C:/", windows).relative(r"\\foo"));
+        assert_eq!("../../foo", FlexPath::new(r"\\a/b", windows).relative(r"\\foo"));
+        assert_eq!("D:/", FlexPath::new("C:/", windows).relative(r"D:"));
     }
 }

@@ -2,7 +2,7 @@
 
 Work with textual file paths, including relativity and resolution. Features:
 
-- _Argumented:_ `Path` methods consider absolute paths according to the path's _PlatformPathVariant_.
+- _Variant_: `FlexPath` methods consider absolute paths according to the path's `FlexPathVariant`.
 
 Requirements:
 
